@@ -165,7 +165,6 @@ void initMotor(uint16_t slaveId) {
   lc.bParityType = 0;
   lc.bDataBits   = 8;
   Acm.SetLineCoding(&lc);
-s
   delay(100);                // 給 USB‑CAN / 馬達一點時間穩定
   send_Enable(slaveId);      // 上電後一次性使能
 }
