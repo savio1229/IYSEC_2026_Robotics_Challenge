@@ -6,18 +6,46 @@
 */
 
 
-#include "PS2X_lib.h"
+#include <PS2X_lib.h>  //for v1.6
 
-PS2X ps2x; 
-int error;
+/******************************************************************
+ * set pins connected to PS2 controller:
+ *   - 1e column: original 
+ *   - 2e colmun: Stef?
+ * replace pin numbers by the ones you use
+ ******************************************************************/
+#define PS2_DAT        13  //14    
+#define PS2_CMD        11  //15
+#define PS2_SEL        10  //16
+#define PS2_CLK        12  //17
+
+/******************************************************************
+ * select modes of PS2 controller:
+ *   - pressures = analog reading of push-butttons 
+ *   - rumble    = motor rumbling
+ * uncomment 1 of the lines for each mode selection
+ ******************************************************************/
+//#define pressures   true
+#define pressures   false
+//#define rumble      true
+#define rumble      false
+
+PS2X ps2x; // create PS2 Controller Class
+
+//right now, the library does NOT support hot pluggable controllers, meaning 
+//you must always either restart your Arduino after you connect the controller, 
+//or call config_gamepad(pins) again after connecting the controller.
+
+int error = 0;
+byte type = 0;
+byte vibrate = 0;
 
 
-
-void initPS2(int Clock,int Command,int Attention,int Data){
+void initPS2(){
   //配對接收器 
   do { 
     //GamePad(clock, command, attention, data, Pressures?, Rumble?)
-    error = ps2x.config_gamepad(Clock, Command, Attention, Data, true, true);   //這行要和接線對應正確
+    error = ps2x.config_gamepad(PS2_CLK, PS2_CMD, PS2_SEL, PS2_DAT, pressures, rumble);//這行要和接線對應正確
     if (error == 0) { Serial.print("Gamepad found!");break; } 
     else { delay(100); } 
   } while (1); 
@@ -146,7 +174,7 @@ void send_disable(uint16_t slaveId) {
 }
 
 // ============ 馬達與 USB 的初始化打包成一個函數 ============
-void initMotor(uint16_t slaveId) {
+void initMotor() {
   // 初始化 USB Host
   if (Usb.Init() == -1) {
     while (1) {}   // 失敗就卡死
@@ -166,25 +194,34 @@ void initMotor(uint16_t slaveId) {
   lc.bDataBits   = 8;
   Acm.SetLineCoding(&lc);
   delay(100);                // 給 USB‑CAN / 馬達一點時間穩定
-  send_Enable(slaveId);      // 上電後一次性使能
 }
 
+//Line-following sensor seting
+int left_sensor_pin = 9;
+int right_sensor_pin = 8;
+
+void init_Line_following_sensor(){
+  pinMode(left_sensor_pin,INPUT);
+  pinMode(right_sensor_pin,INPUT);
+}
 
 
 void setup() {
   Serial.begin(115200);
   //配對接收器 
-  initPS2(13,11,10,12);
-  initMotor(MOTOR_SLAVE_ID1);   // 所有馬達 setup 都包在這一行
-  initMotor(MOTOR_SLAVE_ID2);
-  initMotor(MOTOR_SLAVE_ID3);
-  initMotor(MOTOR_SLAVE_ID4);
+  initPS2();
+  initMotor();   // 所有馬達 setup 都包在這一行
+  send_Enable(MOTOR_SLAVE_ID1);
+  send_Enable(MOTOR_SLAVE_ID2);
+  send_Enable(MOTOR_SLAVE_ID3);
+  send_Enable(MOTOR_SLAVE_ID4);
+  init_Line_following_sensor();
 }
 void loop(){
   ps2x.read_gamepad(false, 0);  //讀取手把狀態 
 
-  int vel_motor_ID1 = map((ps2x.Analog(PSS_LY) + ps2x.Analog(PSS_LX)) + (ps2x.Analog(PSS_RY) + ps2x.Analog(PSS_RX)), 0, 255, -100, 100);
-  int vel_motor_ID2 = map((ps2x.Analog(PSS_LY) - ps2x.Analog(PSS_LX)) + (ps2x.Analog(PSS_RY) - ps2x.Analog(PSS_RX)), 0, 255, -100, 100);
+  int vel_motor_ID1 = map((ps2x.Analog(PSS_LY) + ps2x.Analog(PSS_LX)) + (ps2x.Analog(PSS_RY) + ps2x.Analog(PSS_RX)), 255, 0, -100, 100);
+  int vel_motor_ID2 = map((ps2x.Analog(PSS_LY) - ps2x.Analog(PSS_LX)) + (ps2x.Analog(PSS_RY) - ps2x.Analog(PSS_RX)), 255, 0, -100, 100);
 
   sendVelCommand(MOTOR_SLAVE_ID1,vel_motor_ID1);
   sendVelCommand(MOTOR_SLAVE_ID2,vel_motor_ID1 * -1);
@@ -199,14 +236,35 @@ void loop(){
     if(ps2x.Button(PSB_PAD_UP)) {      //十字方向，上
       Serial.print("Up held this hard: ");
       Serial.println(ps2x.Analog(PSAB_PAD_UP), DEC);
-    }
-    if(ps2x.Button(PSB_PAD_RIGHT)){   //十字方向，右
-      Serial.print("Right held this hard: ");
-      Serial.println(ps2x.Analog(PSAB_PAD_RIGHT), DEC);
+      while(!(digitalRead(right_sensor_pin)));
+      delay(200);
+      sendVelCommand(MOTOR_SLAVE_ID1,-10);//轉彎
+      sendVelCommand(MOTOR_SLAVE_ID2,-10);
+      delay(200);
+      sendVelCommand(MOTOR_SLAVE_ID1,10);//直行
+      sendVelCommand(MOTOR_SLAVE_ID2,-10);
+      while(!(digitalRead(left_sensor_pin)));
+      sendVelCommand(MOTOR_SLAVE_ID1,10);//轉彎
+      sendVelCommand(MOTOR_SLAVE_ID2,10);
+      delay(200);
+      sendVelCommand(MOTOR_SLAVE_ID1,10);//直行
+      sendVelCommand(MOTOR_SLAVE_ID2,10);
+      delay(200);
+      sendVelCommand(MOTOR_SLAVE_ID1,0);
+      sendVelCommand(MOTOR_SLAVE_ID2,0);
+
     }
     if(ps2x.Button(PSB_PAD_LEFT)){    //十字方向，左
       Serial.print("LEFT held this hard: ");
       Serial.println(ps2x.Analog(PSAB_PAD_LEFT), DEC);
+      sendVelCommand(MOTOR_SLAVE_ID1,10);
+      sendVelCommand(MOTOR_SLAVE_ID2,-10);
+    }
+    if(ps2x.Button(PSB_PAD_RIGHT)){   //十字方向，右
+      Serial.print("Right held this hard: ");
+      Serial.println(ps2x.Analog(PSAB_PAD_RIGHT), DEC);
+      sendVelCommand(MOTOR_SLAVE_ID1,-10);
+      sendVelCommand(MOTOR_SLAVE_ID2,10);
     }
     if(ps2x.Button(PSB_PAD_DOWN)){    //十字方向，下
       Serial.print("DOWN held this hard: ");
