@@ -13,6 +13,11 @@
   https://blog.jmaker.com.tw/
 
   傑森創工賣場：https://www.jmaker.com.tw
+  
+  #define PS2_DAT        13  //14    
+  #define PS2_CMD        11  //15
+  #define PS2_SEL        10  //16
+  #define PS2_CLK        12  //17
 
  */
 
