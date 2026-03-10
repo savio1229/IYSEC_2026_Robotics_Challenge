@@ -255,8 +255,8 @@ void loop() {
       Serial.println("Circle just pressed");
       send_Enable(MOTOR_SLAVE_ID3);
       send_Enable(MOTOR_SLAVE_ID4);
-      sendVelCommand(MOTOR_SLAVE_ID3, -100.0f);
-      sendVelCommand(MOTOR_SLAVE_ID4, 100.0f);
+      sendVelCommand(MOTOR_SLAVE_ID3, -390.0f);
+      sendVelCommand(MOTOR_SLAVE_ID4, 390.0f);
     }
     if(ps2x.ButtonPressed(PSB_TRIANGLE)){
       Serial.println("Triangle pressed");
