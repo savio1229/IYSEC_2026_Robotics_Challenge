@@ -49,8 +49,8 @@ ACM Acm(&Usb, &AsyncOper);
 damiao::Motor_Control ctrl(&Usb, &Acm);
 
 // 建立兩個速度模式下的馬達物件實例 (ID: 0x03, ID: 0x04)
-damiao::Motor_Vel motor3_vel(0x03, 395.0f);
-damiao::Motor_Vel motor4_vel(0x04, 395.0f);
+damiao::Motor_Vel motor3_vel(0x03, 435.0f);//395.0f
+damiao::Motor_Vel motor4_vel(0x04, 435.0f);
 
 PS2X ps2x;
 Servo myServo3;             
@@ -186,9 +186,9 @@ void run_auto_program() {
     case 5: 
       if (!case5_part_b) {
         Serial.println("Auto State 5 (Part A): Turning Left... Waiting 1500ms");
-        control_pwm(-AUTO_TURN_PWM, -AUTO_TURN_PWM, 0, 0); 
+        control_pwm(-750, -750, 0, 0); 
         
-        if (millis() - state_timer >= 1150) {
+        if (millis() - state_timer >= 800) {
           Serial.println("Left Turn Complete! Switching to Part B (Forward 500ms)...");
           state_timer = millis();  
           case5_part_b = true;     
@@ -298,7 +298,7 @@ void loop() {
     ctrl.enable(motor3_vel);
     ctrl.enable(motor4_vel); 
     
-    ctrl.control_vel(motor3_vel, -395.0f); 
+    ctrl.control_vel(motor3_vel, -395.0f); //435RPM
     ctrl.control_vel(motor4_vel, 395.0f); 
   }
   
